@@ -1,0 +1,20 @@
+{
+  "name": "dfl",
+  "private": true,
+  "scripts": {
+    "test": "anchor test",
+    "test:ts": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
+    "app:dev": "npm --prefix app run dev",
+    "build:sdk": "npm --prefix sdk run build"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@solana/web3.js": "^1.95.3",
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.12.12",
+    "chai": "^4.4.1",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.4.5"
+  }
+}

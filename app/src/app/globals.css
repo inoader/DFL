@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-stone-100 text-slate-900 transition-colors duration-300;
+    background-image:
+      radial-gradient(circle at top, rgba(120, 113, 108, 0.08), transparent 34%),
+      linear-gradient(180deg, #faf7f2 0%, #f2ebe2 100%);
+  }
+
+  html.dark body {
+    @apply bg-slate-950 text-slate-100;
+    background-image:
+      radial-gradient(circle at top, rgba(45, 212, 191, 0.12), transparent 26%),
+      linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  }
+}
+
+@layer components {
+  .wallet-adapter-button {
+    @apply h-10 rounded-xl px-4 text-sm font-semibold transition;
+    background-color: #0f172a !important;
+    font-family: inherit !important;
+  }
+
+  .wallet-adapter-button-trigger {
+    background-color: #0f172a !important;
+  }
+
+  .dark .wallet-adapter-button,
+  .dark .wallet-adapter-button-trigger {
+    background-color: #e2e8f0 !important;
+    color: #020617 !important;
+  }
+
+  .wallet-adapter-button:not([disabled]):hover {
+    background-color: #1e293b !important;
+  }
+
+  .dark .wallet-adapter-button:not([disabled]):hover {
+    background-color: #cbd5e1 !important;
+  }
+
+  .wallet-adapter-button[disabled] {
+    background-color: #475569 !important;
+  }
+
+  .wallet-adapter-modal-wrapper {
+    @apply rounded-3xl;
+  }
+}

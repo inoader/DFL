@@ -1,0 +1,9 @@
+.DS_Store
+.anchor
+.next
+.turbo
+dist
+target
+node_modules
+coverage
+
