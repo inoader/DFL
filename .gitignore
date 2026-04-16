@@ -7,3 +7,12 @@ target
 node_modules
 coverage
 
+# Secrets / credentials (public repo defensive rules)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*-keypair.json
+*.keypair.json
+secrets/
