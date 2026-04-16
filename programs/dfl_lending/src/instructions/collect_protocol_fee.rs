@@ -15,7 +15,11 @@ pub struct CollectProtocolFee<'info> {
         bump = protocol_config.bump
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [crate::constants::MARKET_SEED, market.collateral_mint.as_ref(), market.debt_mint.as_ref()],
+        bump = market.bump
+    )]
     pub market: Account<'info, Market>,
     #[account(
         mut,

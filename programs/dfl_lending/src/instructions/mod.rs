@@ -15,19 +15,24 @@ pub mod update_market_params;
 pub mod update_protocol_config;
 pub mod withdraw_collateral;
 
-pub use accept_protocol_admin::*;
-pub use borrow::*;
-pub use collect_protocol_fee::*;
-pub use create_market::*;
-pub use deposit_collateral::*;
-pub use fund_liquidity::*;
-pub use initialize_protocol::*;
-pub use liquidate::*;
-pub use open_position::*;
-pub use repay::*;
-pub use set_market_pause::*;
-pub use set_protocol_pause::*;
-pub use transfer_protocol_admin::*;
-pub use update_market_params::*;
-pub use update_protocol_config::*;
-pub use withdraw_collateral::*;
+#[allow(ambiguous_glob_reexports)]
+mod reexports {
+    pub use super::accept_protocol_admin::*;
+    pub use super::borrow::*;
+    pub use super::collect_protocol_fee::*;
+    pub use super::create_market::*;
+    pub use super::deposit_collateral::*;
+    pub use super::fund_liquidity::*;
+    pub use super::initialize_protocol::*;
+    pub use super::liquidate::*;
+    pub use super::open_position::*;
+    pub use super::repay::*;
+    pub use super::set_market_pause::*;
+    pub use super::set_protocol_pause::*;
+    pub use super::transfer_protocol_admin::*;
+    pub use super::update_market_params::*;
+    pub use super::update_protocol_config::*;
+    pub use super::withdraw_collateral::*;
+}
+
+pub use reexports::*;

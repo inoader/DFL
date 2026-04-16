@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::prelude::*;
 
 pub mod constants;
@@ -11,7 +13,7 @@ pub mod state;
 use instructions::*;
 use state::MarketStatus;
 
-declare_id!("11111111111111111111111111111111");
+declare_id!("CiY4cgsGojL8d9ppPLoc7ZRkfcCyptRtUvUsAh5MWk1Z");
 
 #[program]
 pub mod dfl_lending {

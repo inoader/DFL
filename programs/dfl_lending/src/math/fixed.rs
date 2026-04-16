@@ -66,4 +66,26 @@ mod tests {
         assert_eq!(mul_div_round_up(5, 1, 2).unwrap(), 3);
         assert_eq!(mul_div_round_up(10, 3, 2).unwrap(), 15);
     }
+
+    #[test]
+    fn div_round_up_handles_zero_and_exact_values() {
+        assert_eq!(div_round_up(0, 7).unwrap(), 0);
+        assert_eq!(div_round_up(7, 7).unwrap(), 1);
+        assert_eq!(div_round_up(8, 7).unwrap(), 2);
+        assert!(div_round_up(1, 0).is_err());
+    }
+
+    #[test]
+    fn apply_bps_matches_compound_semantics() {
+        assert_eq!(apply_bps(1_000, 7_500).unwrap(), 750);
+        assert_eq!(apply_bps(1_000, 10_000).unwrap(), 1_000);
+        assert_eq!(apply_bps(1_000, 0).unwrap(), 0);
+    }
+
+    #[test]
+    fn checked_pow10_detects_overflow() {
+        assert_eq!(checked_pow10(0).unwrap(), 1);
+        assert_eq!(checked_pow10(18).unwrap(), 1_000_000_000_000_000_000);
+        assert!(checked_pow10(64).is_err());
+    }
 }

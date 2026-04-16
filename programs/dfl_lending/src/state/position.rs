@@ -55,3 +55,59 @@ impl Position {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn market_with_index(index: u128) -> Market {
+        Market {
+            borrow_index: index,
+            ..Market::default()
+        }
+    }
+
+    #[test]
+    fn current_debt_is_zero_when_principal_is_zero() {
+        let position = Position::default();
+        let market = market_with_index(WAD);
+        assert_eq!(position.current_debt(&market).unwrap(), 0);
+    }
+
+    #[test]
+    fn current_debt_scales_with_index_growth() {
+        let position = Position {
+            debt_principal: 100,
+            last_borrow_index: WAD,
+            ..Position::default()
+        };
+        let market = market_with_index(WAD + WAD / 10);
+        assert_eq!(position.current_debt(&market).unwrap(), 110);
+    }
+
+    #[test]
+    fn sync_debt_updates_principal_and_anchor_index() {
+        let mut position = Position {
+            debt_principal: 50,
+            last_borrow_index: WAD,
+            ..Position::default()
+        };
+        let market = market_with_index(WAD * 2);
+        let current = position.sync_debt(&market).unwrap();
+
+        assert_eq!(current, 100);
+        assert_eq!(position.debt_principal, 100);
+        assert_eq!(position.last_borrow_index, WAD * 2);
+    }
+
+    #[test]
+    fn current_debt_treats_zero_old_index_as_identity() {
+        let position = Position {
+            debt_principal: 77,
+            last_borrow_index: 0,
+            ..Position::default()
+        };
+        let market = market_with_index(WAD);
+        assert_eq!(position.current_debt(&market).unwrap(), 77);
+    }
+}

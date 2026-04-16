@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-dfl_lending = "11111111111111111111111111111111"
+dfl_lending = "CiY4cgsGojL8d9ppPLoc7ZRkfcCyptRtUvUsAh5MWk1Z"
 
 [registry]
 url = "https://api.apr.dev"

@@ -8,6 +8,10 @@ use crate::state::{Market, Position};
 pub struct OpenPosition<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
+    #[account(
+        seeds = [crate::constants::MARKET_SEED, market.collateral_mint.as_ref(), market.debt_mint.as_ref()],
+        bump = market.bump
+    )]
     pub market: Account<'info, Market>,
     #[account(
         init,

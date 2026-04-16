@@ -36,3 +36,36 @@ impl ProtocolConfig {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_state_allows_risk_and_liquidation() {
+        let config = ProtocolConfig::default();
+        assert!(config.allows_risk_increase());
+        assert!(config.allows_liquidation());
+    }
+
+    #[test]
+    fn pause_blocks_risk_increase() {
+        let config = ProtocolConfig {
+            paused: true,
+            ..ProtocolConfig::default()
+        };
+        assert!(!config.allows_risk_increase());
+        assert!(!config.allows_liquidation());
+    }
+
+    #[test]
+    fn pause_with_liquidation_flag_keeps_liquidations_open() {
+        let config = ProtocolConfig {
+            paused: true,
+            allow_liquidation_when_paused: true,
+            ..ProtocolConfig::default()
+        };
+        assert!(!config.allows_risk_increase());
+        assert!(config.allows_liquidation());
+    }
+}

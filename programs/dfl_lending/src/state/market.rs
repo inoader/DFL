@@ -295,4 +295,50 @@ mod tests {
         assert!(market.total_debt_principal >= 50);
         assert_eq!(market.last_accrual_slot, 10);
     }
+
+    #[test]
+    fn accrue_interest_is_noop_when_no_debt() {
+        let mut market = Market {
+            total_debt_principal: 0,
+            borrow_index: WAD,
+            last_accrual_slot: 1,
+            ..Market::default()
+        };
+        market.accrue_interest(100, 0).unwrap();
+        assert_eq!(market.borrow_index, WAD);
+        assert_eq!(market.total_debt_principal, 0);
+        assert_eq!(market.last_accrual_slot, 100);
+    }
+
+    #[test]
+    fn market_status_gates_match_business_rules() {
+        assert!(MarketStatus::Active.allows_deposit());
+        assert!(MarketStatus::Active.allows_borrow());
+        assert!(MarketStatus::Active.allows_withdraw());
+        assert!(MarketStatus::Active.allows_liquidation());
+
+        assert!(MarketStatus::ReduceOnly.allows_deposit());
+        assert!(!MarketStatus::ReduceOnly.allows_borrow());
+        assert!(!MarketStatus::ReduceOnly.allows_withdraw());
+        assert!(MarketStatus::ReduceOnly.allows_liquidation());
+
+        assert!(!MarketStatus::Frozen.allows_deposit());
+        assert!(!MarketStatus::Frozen.allows_borrow());
+        assert!(!MarketStatus::Frozen.allows_withdraw());
+        assert!(!MarketStatus::Frozen.allows_liquidation());
+
+        assert!(!MarketStatus::Settlement.allows_deposit());
+        assert!(!MarketStatus::Settlement.allows_borrow());
+        assert!(!MarketStatus::Settlement.allows_withdraw());
+        assert!(!MarketStatus::Settlement.allows_liquidation());
+
+        for status in [
+            MarketStatus::Active,
+            MarketStatus::ReduceOnly,
+            MarketStatus::Frozen,
+            MarketStatus::Settlement,
+        ] {
+            assert!(status.allows_repay(), "repay should always be allowed");
+        }
+    }
 }
