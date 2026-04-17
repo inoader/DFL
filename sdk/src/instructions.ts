@@ -9,6 +9,7 @@ const DISCRIMINATORS = {
   transferProtocolAdmin: [237, 206, 125, 27, 59, 18, 43, 102],
   acceptProtocolAdmin: [76, 35, 211, 183, 82, 72, 131, 36],
   createMarket: [103, 226, 97, 235, 200, 188, 251, 254],
+  initializeMarketFeeVault: [188, 116, 213, 99, 116, 242, 253, 34],
   fundLiquidity: [92, 113, 223, 209, 191, 118, 31, 8],
   openPosition: [135, 128, 47, 77, 15, 152, 240, 49],
   depositCollateral: [156, 131, 142, 116, 146, 247, 162, 120],
@@ -148,7 +149,6 @@ export function createMarketInstruction(args: {
     | "debtPriceFeed"
     | "collateralVault"
     | "liquidityVault"
-    | "feeVault"
     | "tokenProgram"
     | "associatedTokenProgram"
     | "systemProgram"
@@ -167,12 +167,36 @@ export function createMarketInstruction(args: {
     meta(args.accounts.debtMint, false, false),
     meta(args.accounts.collateralPriceFeed, false, false),
     meta(args.accounts.debtPriceFeed, false, false),
-    meta(args.accounts.collateralVault, false, true),
-    meta(args.accounts.liquidityVault, false, true),
-    meta(args.accounts.feeVault, false, true),
+    meta(args.accounts.collateralVault, false, false),
+    meta(args.accounts.liquidityVault, false, false),
     meta(args.accounts.tokenProgram, false, false),
     meta(args.accounts.associatedTokenProgram, false, false),
     meta(args.accounts.systemProgram, false, false),
+  ]);
+}
+
+export function initializeMarketFeeVaultInstruction(args: {
+  programId: PublicKeyInput;
+  accounts: InstructionAccounts<
+    | "authority"
+    | "market"
+    | "vaultAuthority"
+    | "debtMint"
+    | "feeVault"
+    | "tokenProgram"
+    | "systemProgram"
+    | "rent"
+  >;
+}): TransactionInstruction {
+  return instruction(args.programId, data(DISCRIMINATORS.initializeMarketFeeVault), [
+    meta(args.accounts.authority, true, true),
+    meta(args.accounts.market, false, true),
+    meta(args.accounts.vaultAuthority, false, false),
+    meta(args.accounts.debtMint, false, false),
+    meta(args.accounts.feeVault, false, true),
+    meta(args.accounts.tokenProgram, false, false),
+    meta(args.accounts.systemProgram, false, false),
+    meta(args.accounts.rent, false, false),
   ]);
 }
 

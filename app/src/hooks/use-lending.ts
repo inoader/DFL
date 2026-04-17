@@ -27,7 +27,10 @@ export function useMarkets(client: LendingClient) {
     client
       .fetchMarkets()
       .then(setMarkets)
-      .catch(() => setMarkets([]))
+      .catch((err) => {
+        console.error("[DFL] fetchMarkets failed:", err);
+        setMarkets([]);
+      })
       .finally(() => setLoading(false));
   }, [client]);
 
@@ -55,7 +58,10 @@ export function usePosition(
     client
       .fetchPositionByOwner(marketAddress, publicKey.toBase58())
       .then(setPosition)
-      .catch(() => setPosition(null))
+      .catch((err) => {
+        console.error("[DFL] fetchPosition failed:", err);
+        setPosition(null);
+      })
       .finally(() => setLoading(false));
   }, [client, marketAddress, publicKey]);
 

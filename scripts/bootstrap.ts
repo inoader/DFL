@@ -5,14 +5,27 @@
  * Usage (from the repository root, after `solana-test-validator` and `anchor deploy`):
  *
  *   npm run script:bootstrap
+ *   npm run script:bootstrap -- --collateral-symbol tSOL --debt-symbol tUSDC
+ *
+ * Flags (all optional):
+ *   --collateral-symbol <SYMBOL>  label shown in UI for collateral (default tSOL)
+ *   --collateral-name   <NAME>    long name for collateral (default "Test SOL")
+ *   --collateral-decimals <N>     decimals for collateral mint (default 9)
+ *   --debt-symbol       <SYMBOL>  label shown in UI for debt (default tUSDC)
+ *   --debt-name         <NAME>    long name for debt (default "Test USDC")
+ *   --debt-decimals     <N>       decimals for debt mint (default 6)
  *
  * Environment variables:
  *   DFL_RPC_URL       - RPC endpoint (default http://127.0.0.1:8899)
  *   DFL_PROGRAM_ID    - on-chain program id (default matches Anchor.toml)
  *   DFL_WALLET        - payer keypair path (default ~/.config/solana/id.json)
+ *   DFL_NETWORK       - snapshot namespace (auto-detected from RPC)
  *
  * The script is idempotent; re-running will reuse any existing protocol config.
+ * After minting, symbols are appended to `app/public/token-registry.json` so
+ * the frontend displays meaningful asset labels instead of raw addresses.
  */
+import * as fs from "fs";
 import * as path from "path";
 
 import {
@@ -28,17 +41,56 @@ import {
   initializeProtocolInstruction,
 } from "../sdk/src";
 
-import { ensureSolBalance, loadContext, writeJson } from "./common";
+import { ensureSolBalance, loadContext, snapshotPath, writeJson } from "./common";
 
-const OUT_FILE = path.join(__dirname, "..", "target", "localnet-bootstrap.json");
+type TokenLabelArgs = {
+  collateralSymbol: string;
+  collateralName: string;
+  collateralDecimals: number;
+  debtSymbol: string;
+  debtName: string;
+  debtDecimals: number;
+};
+
+function parseTokenLabelArgs(): TokenLabelArgs {
+  const args = process.argv.slice(2);
+  const flag = (name: string): string | undefined => {
+    const idx = args.indexOf(`--${name}`);
+    return idx >= 0 ? args[idx + 1] : undefined;
+  };
+  const toNumber = (raw: string | undefined, fallback: number): number => {
+    if (raw === undefined) return fallback;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 18) {
+      throw new Error(`Invalid decimals "${raw}" (expected 0..18)`);
+    }
+    return n;
+  };
+  return {
+    collateralSymbol: flag("collateral-symbol") ?? "tSOL",
+    collateralName: flag("collateral-name") ?? "Test SOL",
+    collateralDecimals: toNumber(flag("collateral-decimals"), 9),
+    debtSymbol: flag("debt-symbol") ?? "tUSDC",
+    debtName: flag("debt-name") ?? "Test USDC",
+    debtDecimals: toNumber(flag("debt-decimals"), 6),
+  };
+}
 
 async function main(): Promise<void> {
   const ctx = loadContext();
-  await ensureSolBalance(ctx, ctx.payer.publicKey, 5);
+  const labels = parseTokenLabelArgs();
+  if (ctx.network === "localnet") {
+    await ensureSolBalance(ctx, ctx.payer.publicKey, 5);
+  }
+  const outFile = snapshotPath(ctx, "bootstrap");
 
+  console.log(`Network ......: ${ctx.network}`);
   console.log(`RPC ..........: ${ctx.connection.rpcEndpoint}`);
   console.log(`Payer ........: ${ctx.payer.publicKey.toBase58()}`);
   console.log(`Program id ...: ${ctx.programId.toBase58()}`);
+  console.log(
+    `Tokens .......: ${labels.collateralSymbol} (${labels.collateralDecimals}d) / ${labels.debtSymbol} (${labels.debtDecimals}d)`,
+  );
 
   const [configPda] = findProtocolConfigPda(ctx.programId);
   const existing = await ctx.connection.getAccountInfo(configPda);
@@ -69,15 +121,23 @@ async function main(): Promise<void> {
     console.log(`  initialize_protocol: ${signature}`);
   }
 
-  console.log("Creating SPL mints (collateral=9 decimals, debt=6 decimals) ...");
+  console.log(
+    `Creating SPL mints (collateral=${labels.collateralDecimals} decimals, debt=${labels.debtDecimals} decimals) ...`,
+  );
   const collateralMint = await createMint(
     ctx.connection,
     ctx.payer,
     ctx.payer.publicKey,
     null,
-    9,
+    labels.collateralDecimals,
   );
-  const debtMint = await createMint(ctx.connection, ctx.payer, ctx.payer.publicKey, null, 6);
+  const debtMint = await createMint(
+    ctx.connection,
+    ctx.payer,
+    ctx.payer.publicKey,
+    null,
+    labels.debtDecimals,
+  );
 
   const payerCollateralAta = await createAccount(
     ctx.connection,
@@ -101,13 +161,59 @@ async function main(): Promise<void> {
     payerDebtAta,
   };
 
-  writeJson(OUT_FILE, snapshot);
+  writeJson(outFile, snapshot);
   console.log("\nBootstrap complete. Snapshot written to:");
-  console.log(`  ${OUT_FILE}`);
+  console.log(`  ${outFile}`);
+
+  upsertTokenRegistry({
+    [collateralMint.toBase58()]: {
+      symbol: labels.collateralSymbol,
+      name: labels.collateralName,
+      decimals: labels.collateralDecimals,
+    },
+    [debtMint.toBase58()]: {
+      symbol: labels.debtSymbol,
+      name: labels.debtName,
+      decimals: labels.debtDecimals,
+    },
+  });
+
   console.log(
     "\nNext: seed Pyth-compatible price feeds, then run scripts/create-market.ts (see README).",
   );
   inspectFeedHint();
+}
+
+function upsertTokenRegistry(
+  entries: Record<string, { symbol: string; name: string; decimals: number }>,
+): void {
+  const registryPath = path.join(
+    __dirname,
+    "..",
+    "app",
+    "public",
+    "token-registry.json",
+  );
+  const publicDir = path.dirname(registryPath);
+  try {
+    if (!fs.existsSync(publicDir)) {
+      fs.mkdirSync(publicDir, { recursive: true });
+    }
+    let existing: Record<string, unknown> = {};
+    if (fs.existsSync(registryPath)) {
+      try {
+        existing = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+      } catch {
+        existing = {};
+      }
+    }
+    const merged = { ...existing, ...entries };
+    fs.writeFileSync(registryPath, `${JSON.stringify(merged, null, 2)}\n`);
+    console.log(`Token registry updated: ${registryPath}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`Could not update token registry at ${registryPath}: ${msg}`);
+  }
 }
 
 function inspectFeedHint(): void {

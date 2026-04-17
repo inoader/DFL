@@ -16,8 +16,6 @@
  * The borrower wallet is the same payer as bootstrap.ts — adjust DFL_WALLET to impersonate
  * a different user if needed.
  */
-import * as path from "path";
-
 import {
   ComputeBudgetProgram,
   PublicKey,
@@ -36,7 +34,7 @@ import {
   withdrawCollateralInstruction,
 } from "../sdk/src";
 
-import { loadContext } from "./common";
+import { loadContext, snapshotPath } from "./common";
 
 type MarketSnapshot = {
   programId: string;
@@ -57,13 +55,12 @@ type BootstrapSnapshot = {
   payerDebtAta: string;
 };
 
-const SNAPSHOT_PATH = path.join(__dirname, "..", "target", "localnet-market.json");
-const BOOTSTRAP_PATH = path.join(__dirname, "..", "target", "localnet-bootstrap.json");
-
 async function main(): Promise<void> {
   const ctx = loadContext();
-  const market = loadSnapshot<MarketSnapshot>(SNAPSHOT_PATH);
-  const bootstrap = loadSnapshot<BootstrapSnapshot>(BOOTSTRAP_PATH);
+  console.log(`Network ......: ${ctx.network}`);
+  console.log(`RPC ..........: ${ctx.connection.rpcEndpoint}`);
+  const market = loadSnapshot<MarketSnapshot>(snapshotPath(ctx, "market"));
+  const bootstrap = loadSnapshot<BootstrapSnapshot>(snapshotPath(ctx, "bootstrap"));
   const opts = parseArgs();
 
   const programId = ctx.programId;

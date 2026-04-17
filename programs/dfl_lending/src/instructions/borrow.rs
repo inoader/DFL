@@ -16,38 +16,38 @@ pub struct Borrow<'info> {
         seeds = [crate::constants::CONFIG_SEED],
         bump = protocol_config.bump
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
     #[account(
         mut,
         seeds = [crate::constants::MARKET_SEED, market.collateral_mint.as_ref(), market.debt_mint.as_ref()],
         bump = market.bump
     )]
-    pub market: Account<'info, Market>,
+    pub market: Box<Account<'info, Market>>,
     #[account(
         mut,
         constraint = position.market == market.key() @ ErrorCode::InvalidAccount,
         constraint = position.owner == owner.key() @ ErrorCode::Unauthorized
     )]
-    pub position: Account<'info, Position>,
+    pub position: Box<Account<'info, Position>>,
     #[account(address = market.collateral_price_feed @ ErrorCode::PriceFeedMismatch)]
     pub collateral_price_feed: UncheckedAccount<'info>,
     #[account(address = market.debt_price_feed @ ErrorCode::PriceFeedMismatch)]
     pub debt_price_feed: UncheckedAccount<'info>,
     #[account(address = market.collateral_mint @ ErrorCode::InvalidAccount)]
-    pub collateral_mint: Account<'info, Mint>,
+    pub collateral_mint: Box<Account<'info, Mint>>,
     #[account(address = market.debt_mint @ ErrorCode::InvalidAccount)]
-    pub debt_mint: Account<'info, Mint>,
+    pub debt_mint: Box<Account<'info, Mint>>,
     #[account(
         mut,
         address = market.liquidity_vault @ ErrorCode::InvalidAccount
     )]
-    pub liquidity_vault: Account<'info, TokenAccount>,
+    pub liquidity_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = user_debt_account.owner == owner.key() @ ErrorCode::InvalidAccount,
         constraint = user_debt_account.mint == market.debt_mint @ ErrorCode::InvalidAccount
     )]
-    pub user_debt_account: Account<'info, TokenAccount>,
+    pub user_debt_account: Box<Account<'info, TokenAccount>>,
     /// CHECK: PDA signer authority for token vaults.
     #[account(
         seeds = [VAULT_AUTHORITY_SEED, market.key().as_ref()],

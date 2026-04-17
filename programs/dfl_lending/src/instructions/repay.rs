@@ -15,34 +15,34 @@ pub struct Repay<'info> {
         seeds = [crate::constants::CONFIG_SEED],
         bump = protocol_config.bump
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
     #[account(
         mut,
         seeds = [crate::constants::MARKET_SEED, market.collateral_mint.as_ref(), market.debt_mint.as_ref()],
         bump = market.bump
     )]
-    pub market: Account<'info, Market>,
+    pub market: Box<Account<'info, Market>>,
     #[account(
         mut,
         constraint = position.market == market.key() @ ErrorCode::InvalidAccount
     )]
-    pub position: Account<'info, Position>,
+    pub position: Box<Account<'info, Position>>,
     #[account(
         mut,
         constraint = payer_debt_account.owner == payer.key() @ ErrorCode::InvalidAccount,
         constraint = payer_debt_account.mint == market.debt_mint @ ErrorCode::InvalidAccount
     )]
-    pub payer_debt_account: Account<'info, TokenAccount>,
+    pub payer_debt_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         address = market.liquidity_vault @ ErrorCode::InvalidAccount
     )]
-    pub liquidity_vault: Account<'info, TokenAccount>,
+    pub liquidity_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         address = market.fee_vault @ ErrorCode::InvalidAccount
     )]
-    pub fee_vault: Account<'info, TokenAccount>,
+    pub fee_vault: Box<Account<'info, TokenAccount>>,
     /// CHECK: PDA signer authority for token vaults.
     #[account(
         seeds = [VAULT_AUTHORITY_SEED, market.key().as_ref()],

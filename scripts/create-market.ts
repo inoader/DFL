@@ -11,21 +11,24 @@
  *   --collateral-feed-id <32-byte hex>   # pass-through match for Pyth price-feed identifiers
  *   --debt-feed-id       <32-byte hex>
  *
- * The script derives market / vault / fee_vault PDAs, then invokes create_market with
- * sensible defaults (LTV 75%, LT 85%, liquidation bonus 5%, close factor 50%,
- * reserve factor 10%, jump-rate 1/4/20% @ 80% kink). Tune in-line to taste.
+ * Pipeline (3 on-chain txs):
+ *   1) client-side create_associated_token_account for collateral_vault & liquidity_vault
+ *      (both owned by the vault_authority PDA)
+ *   2) create_market — wires the market PDA to the mints/feeds/vaults
+ *   3) initialize_market_fee_vault — inits the fee_vault PDA (separate ix to keep
+ *      create_market's account list small enough for SBPF stack limits)
  */
-import * as path from "path";
-
 import {
   ComputeBudgetProgram,
   PublicKey,
   SystemProgram,
+  SYSVAR_RENT_PUBKEY,
   Transaction,
 } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 
@@ -34,9 +37,10 @@ import {
   findFeeVaultPda,
   findMarketPda,
   findVaultAuthorityPda,
+  initializeMarketFeeVaultInstruction,
 } from "../sdk/src";
 
-import { loadContext, readJson, writeJson } from "./common";
+import { loadContext, readJson, snapshotPath, writeJson } from "./common";
 
 type BootstrapSnapshot = {
   programId: string;
@@ -52,13 +56,14 @@ type CliOpts = {
   debtFeedId: Uint8Array;
 };
 
-const SNAPSHOT_PATH = path.join(__dirname, "..", "target", "localnet-bootstrap.json");
-const OUT_PATH = path.join(__dirname, "..", "target", "localnet-market.json");
-
 async function main(): Promise<void> {
   const ctx = loadContext();
-  const snapshot = readJson<BootstrapSnapshot>(SNAPSHOT_PATH);
+  const snapshotPathIn = snapshotPath(ctx, "bootstrap");
+  const outPath = snapshotPath(ctx, "market");
+  const snapshot = readJson<BootstrapSnapshot>(snapshotPathIn);
   const opts = parseArgs();
+  console.log(`Network ......: ${ctx.network}`);
+  console.log(`RPC ..........: ${ctx.connection.rpcEndpoint}`);
 
   const collateralMint = new PublicKey(snapshot.collateralMint);
   const debtMint = new PublicKey(snapshot.debtMint);
@@ -70,7 +75,40 @@ async function main(): Promise<void> {
   const collateralVault = getAssociatedTokenAddressSync(collateralMint, vaultAuthority, true);
   const liquidityVault = getAssociatedTokenAddressSync(debtMint, vaultAuthority, true);
 
-  const ix = createMarketInstruction({
+  const vaultTx = new Transaction().add(
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
+  );
+  const collateralVaultAccount = await ctx.connection.getAccountInfo(collateralVault);
+  if (!collateralVaultAccount) {
+    vaultTx.add(
+      createAssociatedTokenAccountInstruction(
+        ctx.payer.publicKey,
+        collateralVault,
+        vaultAuthority,
+        collateralMint,
+      ),
+    );
+  }
+  const liquidityVaultAccount = await ctx.connection.getAccountInfo(liquidityVault);
+  if (!liquidityVaultAccount) {
+    vaultTx.add(
+      createAssociatedTokenAccountInstruction(
+        ctx.payer.publicKey,
+        liquidityVault,
+        vaultAuthority,
+        debtMint,
+      ),
+    );
+  }
+  if (vaultTx.instructions.length > 1) {
+    const vaultSignature = await ctx.connection.sendTransaction(vaultTx, [ctx.payer]);
+    await ctx.connection.confirmTransaction(vaultSignature, "confirmed");
+    console.log(`vault atas signature: ${vaultSignature}`);
+  } else {
+    console.log("vault ATAs already exist, skipping creation");
+  }
+
+  const createIx = createMarketInstruction({
     programId: ctx.programId,
     accounts: {
       authority: ctx.payer.publicKey,
@@ -83,7 +121,6 @@ async function main(): Promise<void> {
       debtPriceFeed: opts.debtFeed,
       collateralVault,
       liquidityVault,
-      feeVault,
       tokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
@@ -113,15 +150,40 @@ async function main(): Promise<void> {
     },
   });
 
-  const tx = new Transaction()
+  const marketTx = new Transaction()
     .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }))
-    .add(ix);
-  const signature = await ctx.connection.sendTransaction(tx, [ctx.payer]);
+    .add(createIx);
+  const signature = await ctx.connection.sendTransaction(marketTx, [ctx.payer]);
   await ctx.connection.confirmTransaction(signature, "confirmed");
   console.log(`create_market signature: ${signature}`);
   console.log(`market PDA: ${market.toBase58()}`);
 
-  writeJson(OUT_PATH, {
+  const feeVaultInfo = await ctx.connection.getAccountInfo(feeVault);
+  if (!feeVaultInfo) {
+    const feeIx = initializeMarketFeeVaultInstruction({
+      programId: ctx.programId,
+      accounts: {
+        authority: ctx.payer.publicKey,
+        market,
+        vaultAuthority,
+        debtMint,
+        feeVault,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      },
+    });
+    const feeTx = new Transaction()
+      .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }))
+      .add(feeIx);
+    const feeSignature = await ctx.connection.sendTransaction(feeTx, [ctx.payer]);
+    await ctx.connection.confirmTransaction(feeSignature, "confirmed");
+    console.log(`initialize_market_fee_vault signature: ${feeSignature}`);
+  } else {
+    console.log("fee_vault already initialized, skipping");
+  }
+
+  writeJson(outPath, {
     rpc: ctx.connection.rpcEndpoint,
     programId: ctx.programId,
     protocolConfig,

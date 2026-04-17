@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::associated_token::{get_associated_token_address, AssociatedToken};
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::constants::{FEE_VAULT_SEED, MARKET_SEED, VAULT_AUTHORITY_SEED, WAD};
@@ -41,7 +41,7 @@ pub struct CreateMarket<'info> {
         seeds = [crate::constants::CONFIG_SEED],
         bump = protocol_config.bump
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
     #[account(
         init,
         payer = authority,
@@ -49,33 +49,54 @@ pub struct CreateMarket<'info> {
         seeds = [MARKET_SEED, collateral_mint.key().as_ref(), debt_mint.key().as_ref()],
         bump
     )]
-    pub market: Account<'info, Market>,
+    pub market: Box<Account<'info, Market>>,
     /// CHECK: PDA signer authority for token vaults.
     #[account(
         seeds = [VAULT_AUTHORITY_SEED, market.key().as_ref()],
         bump
     )]
     pub vault_authority: UncheckedAccount<'info>,
-    pub collateral_mint: Account<'info, Mint>,
-    pub debt_mint: Account<'info, Mint>,
+    pub collateral_mint: Box<Account<'info, Mint>>,
+    pub debt_mint: Box<Account<'info, Mint>>,
     #[account(address = params.collateral_price_feed @ ErrorCode::PriceFeedMismatch)]
     pub collateral_price_feed: UncheckedAccount<'info>,
     #[account(address = params.debt_price_feed @ ErrorCode::PriceFeedMismatch)]
     pub debt_price_feed: UncheckedAccount<'info>,
     #[account(
-        init,
-        payer = authority,
-        associated_token::mint = collateral_mint,
-        associated_token::authority = vault_authority
+        constraint = collateral_vault.key() == get_associated_token_address(&vault_authority.key(), &collateral_mint.key()) @ ErrorCode::InvalidAccount,
+        constraint = collateral_vault.mint == collateral_mint.key() @ ErrorCode::InvalidAccount,
+        constraint = collateral_vault.owner == vault_authority.key() @ ErrorCode::InvalidAccount
     )]
-    pub collateral_vault: Account<'info, TokenAccount>,
+    pub collateral_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        init,
-        payer = authority,
-        associated_token::mint = debt_mint,
-        associated_token::authority = vault_authority
+        constraint = liquidity_vault.key() == get_associated_token_address(&vault_authority.key(), &debt_mint.key()) @ ErrorCode::InvalidAccount,
+        constraint = liquidity_vault.mint == debt_mint.key() @ ErrorCode::InvalidAccount,
+        constraint = liquidity_vault.owner == vault_authority.key() @ ErrorCode::InvalidAccount
     )]
-    pub liquidity_vault: Account<'info, TokenAccount>,
+    pub liquidity_vault: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeMarketFeeVault<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [MARKET_SEED, market.collateral_mint.as_ref(), market.debt_mint.as_ref()],
+        bump = market.bump
+    )]
+    pub market: Box<Account<'info, Market>>,
+    /// CHECK: PDA signer authority for token vaults.
+    #[account(
+        seeds = [VAULT_AUTHORITY_SEED, market.key().as_ref()],
+        bump
+    )]
+    pub vault_authority: UncheckedAccount<'info>,
+    #[account(address = market.debt_mint @ ErrorCode::InvalidAccount)]
+    pub debt_mint: Box<Account<'info, Mint>>,
     #[account(
         init,
         payer = authority,
@@ -84,10 +105,10 @@ pub struct CreateMarket<'info> {
         seeds = [FEE_VAULT_SEED, market.key().as_ref()],
         bump
     )]
-    pub fee_vault: Account<'info, TokenAccount>,
+    pub fee_vault: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn handler(ctx: Context<CreateMarket>, params: CreateMarketParams) -> Result<()> {
@@ -128,7 +149,11 @@ pub fn handler(ctx: Context<CreateMarket>, params: CreateMarketParams) -> Result
     market.debt_price_feed = ctx.accounts.debt_price_feed.key();
     market.collateral_vault = ctx.accounts.collateral_vault.key();
     market.liquidity_vault = ctx.accounts.liquidity_vault.key();
-    market.fee_vault = ctx.accounts.fee_vault.key();
+    let (fee_vault_pda, _) = Pubkey::find_program_address(
+        &[FEE_VAULT_SEED, &market.key().to_bytes()],
+        &crate::ID,
+    );
+    market.fee_vault = fee_vault_pda;
     market.total_collateral_amount = 0;
     market.total_debt_principal = 0;
     market.total_reserves = 0;
@@ -166,6 +191,30 @@ pub fn handler(ctx: Context<CreateMarket>, params: CreateMarketParams) -> Result
     });
 
     Ok(())
+}
+
+pub fn initialize_market_fee_vault_handler(
+    ctx: Context<InitializeMarketFeeVault>,
+) -> Result<()> {
+    ctx.accounts
+        .protocol_config_required_check(&ctx.accounts.authority)?;
+    require_keys_eq!(
+        ctx.accounts.fee_vault.key(),
+        ctx.accounts.market.fee_vault,
+        ErrorCode::InvalidAccount
+    );
+    Ok(())
+}
+
+impl<'info> InitializeMarketFeeVault<'info> {
+    fn protocol_config_required_check(&self, _authority: &Signer<'info>) -> Result<()> {
+        require_keys_eq!(
+            self.market.authority,
+            _authority.key(),
+            ErrorCode::Unauthorized
+        );
+        Ok(())
+    }
 }
 
 fn validate_market_params(params: &CreateMarketParams) -> Result<()> {

@@ -6,6 +6,8 @@ dist
 target
 node_modules
 coverage
+test-ledger
+*.tsbuildinfo
 
 # Secrets / credentials (public repo defensive rules)
 .env

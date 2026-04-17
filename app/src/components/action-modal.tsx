@@ -65,6 +65,13 @@ export function ActionModal({
       : debtDecimals;
 
   const handleSubmit = useCallback(async () => {
+    console.log("[DFL] ActionModal submit clicked", {
+      actionType,
+      publicKey: publicKey?.toBase58(),
+      connected: !!publicKey,
+      endpoint: connection.rpcEndpoint,
+    });
+
     if (!publicKey) {
       setError(copy.actionModal.walletNotConnected);
       return;
@@ -254,8 +261,23 @@ export function ActionModal({
       }
 
       const tx = new Transaction().add(ix);
+      const { blockhash, lastValidBlockHeight } =
+        await connection.getLatestBlockhash("confirmed");
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
+      console.log("[DFL] sending transaction", {
+        actionType,
+        ixKeys: ix.keys.length,
+        programId: ix.programId.toBase58(),
+        blockhash,
+      });
       const signature = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(signature, "confirmed");
+      console.log("[DFL] signature:", signature);
+      await connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        "confirmed",
+      );
+      console.log("[DFL] confirmed:", signature);
 
       setTxSig(signature);
       setTimeout(() => {
@@ -263,6 +285,7 @@ export function ActionModal({
         onClose();
       }, 2000);
     } catch (err: unknown) {
+      console.error("[DFL] ActionModal failed:", err);
       const message =
         err instanceof Error ? err.message : copy.actionModal.txFailed;
       setError(message);

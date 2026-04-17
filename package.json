@@ -9,6 +9,7 @@
     "build:sdk": "npm --prefix sdk run build",
     "script:bootstrap": "ts-node scripts/bootstrap.ts",
     "script:create-market": "ts-node scripts/create-market.ts",
+    "script:seed-markets": "ts-node scripts/seed-markets.ts",
     "script:smoke-borrower": "ts-node scripts/smoke-borrower.ts"
   },
   "devDependencies": {

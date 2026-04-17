@@ -2,8 +2,9 @@
 
 import { Moon, Sun } from "lucide-react";
 import { BrandMark } from "./brand-mark";
-import { useLanguage, useTheme } from "./providers";
+import { useLanguage, useNetwork, useTheme } from "./providers";
 import { LANGUAGE_OPTIONS, type AppLanguage } from "../lib/i18n";
+import type { NetworkId } from "../lib/constants";
 import {
   Select,
   SelectContent,
@@ -12,9 +13,12 @@ import {
   SelectValue,
 } from "./ui/select";
 
+const NETWORK_OPTIONS: NetworkId[] = ["localnet", "devnet"];
+
 export function Header() {
   const { language, setLanguage, copy } = useLanguage();
   const { theme, setTheme } = useTheme();
+  const { network, setNetwork } = useNetwork();
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/60 bg-white/75 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/75">
@@ -32,6 +36,40 @@ export function Header() {
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="w-[148px]">
+            <Select
+              value={network}
+              onValueChange={(value: string) => setNetwork(value as NetworkId)}
+            >
+              <SelectTrigger aria-label={copy.header.networkLabel}>
+                <SelectValue placeholder={copy.header.networkLabel} />
+              </SelectTrigger>
+              <SelectContent>
+                {NETWORK_OPTIONS.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {copy.header.networks[id]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-[132px]">
+            <Select
+              value={language}
+              onValueChange={(value: string) => setLanguage(value as AppLanguage)}
+            >
+              <SelectTrigger aria-label={copy.header.languageLabel}>
+                <SelectValue placeholder={copy.header.languageLabel} />
+              </SelectTrigger>
+              <SelectContent>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="inline-flex items-center rounded-full border border-slate-200 bg-white/90 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/90">
             <button
               type="button"
@@ -61,23 +99,6 @@ export function Header() {
             >
               <Moon className="size-4" />
             </button>
-          </div>
-          <div className="w-[132px]">
-            <Select
-              value={language}
-              onValueChange={(value: string) => setLanguage(value as AppLanguage)}
-            >
-              <SelectTrigger aria-label={copy.header.languageLabel}>
-                <SelectValue placeholder={copy.header.languageLabel} />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGE_OPTIONS.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
       </div>

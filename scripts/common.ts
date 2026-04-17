@@ -18,6 +18,7 @@ export type ScriptContext = {
   connection: Connection;
   programId: PublicKey;
   payer: Keypair;
+  network: string;
 };
 
 export function loadContext(options: { commitment?: Commitment } = {}): ScriptContext {
@@ -29,8 +30,22 @@ export function loadContext(options: { commitment?: Commitment } = {}): ScriptCo
   const payer = loadKeypair(
     process.env.DFL_WALLET ?? path.join(os.homedir(), ".config", "solana", "id.json"),
   );
+  const network = process.env.DFL_NETWORK ?? detectNetwork(rpc);
 
-  return { connection, programId, payer };
+  return { connection, programId, payer, network };
+}
+
+function detectNetwork(rpc: string): string {
+  if (rpc.includes("127.0.0.1") || rpc.includes("localhost")) return "localnet";
+  if (rpc.includes("devnet")) return "devnet";
+  if (rpc.includes("testnet")) return "testnet";
+  if (rpc.includes("mainnet")) return "mainnet";
+  return "custom";
+}
+
+export function snapshotPath(networkOrCtx: string | ScriptContext, suffix: string): string {
+  const network = typeof networkOrCtx === "string" ? networkOrCtx : networkOrCtx.network;
+  return path.join(__dirname, "..", "target", `${network}-${suffix}.json`);
 }
 
 export function loadKeypair(keypairPath: string): Keypair {

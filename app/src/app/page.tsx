@@ -6,11 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import type { MarketAccount } from "@dfl/sdk";
 import { Header } from "../components/header";
 import { MarketList } from "../components/market-list";
-import { MarketDetail } from "../components/market-detail";
-import {
-  PositionPanel,
-  type ActionType,
-} from "../components/position-panel";
+import type { ActionType } from "../components/position-panel";
 import { ActionModal } from "../components/action-modal";
 import {
   useLendingClient,
@@ -59,7 +55,9 @@ export default function HomePage() {
   const dbtDecimals = useTokenDecimals(selectedMarket?.debtMint ?? null);
 
   const handleMarketSelect = useCallback((market: MarketAccount) => {
-    setSelectedMarket(market);
+    setSelectedMarket((current) =>
+      current?.address === market.address ? null : market,
+    );
   }, []);
 
   const handleAction = useCallback((type: ActionType) => {
@@ -90,7 +88,7 @@ export default function HomePage() {
           </CardHeader>
         </Card>
 
-        <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <section className="relative z-30 mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <StatHeroCard
             label={copy.home.totalMarkets}
             value={String(markets.length)}
@@ -128,36 +126,15 @@ export default function HomePage() {
           markets={markets}
           loading={marketsLoading}
           selectedAddress={selectedMarket?.address ?? null}
+          collateralDecimals={colDecimals}
+          debtDecimals={dbtDecimals}
+          position={position}
+          positionLoading={positionLoading}
+          walletConnected={!!publicKey}
           onSelect={handleMarketSelect}
           onRefresh={refreshMarkets}
+          onAction={handleAction}
         />
-
-        {selectedMarket ? (
-          <>
-            <MarketDetail
-              market={selectedMarket}
-              collateralDecimals={colDecimals}
-              debtDecimals={dbtDecimals}
-              onClose={() => setSelectedMarket(null)}
-            />
-            <PositionPanel
-              market={selectedMarket}
-              position={position}
-              positionLoading={positionLoading}
-              collateralDecimals={colDecimals ?? 9}
-              debtDecimals={dbtDecimals ?? 6}
-              onAction={handleAction}
-              walletConnected={!!publicKey}
-            />
-          </>
-        ) : (
-          <Card className="mt-8 border-dashed border-slate-300 bg-white/75 dark:border-slate-700 dark:bg-slate-900/70">
-            <CardContent className="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
-              <p className="text-base">{copy.home.selectMarketTitle}</p>
-              <p className="mt-2 text-sm">{copy.home.selectMarketDescription}</p>
-            </CardContent>
-          </Card>
-        )}
 
         {actionType && selectedMarket && (
           <ActionModal

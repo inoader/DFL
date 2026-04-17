@@ -1,0 +1,27 @@
+{
+  "CRnPnTn5d7V9UcEGPdheoE1qakATH28BrseuPasEhk7L": {
+    "symbol": "tSOL",
+    "name": "Test SOL",
+    "decimals": 9
+  },
+  "5ThYwPc4a3quPSuZZYjh9LH52VZGXG24Vwru2xFU3aY": {
+    "symbol": "tUSDC",
+    "name": "Test USDC",
+    "decimals": 6
+  },
+  "C9pKoiNhe7K8MEcutEMWpzr5AzdqPBD71LTegVKwZFq7": {
+    "symbol": "tBTC",
+    "name": "Test BTC",
+    "decimals": 9
+  },
+  "3bndSWzVCpD5Udhk3ppgAC2VQ2cFcjN9C1J6k3EvcYn9": {
+    "symbol": "tETH",
+    "name": "Test ETH",
+    "decimals": 9
+  },
+  "FPwPDnd4sNVEmQcJadWhJY2xe1HLUwgJfqmBduLtGCrp": {
+    "symbol": "tUSDT",
+    "name": "Test USDT",
+    "decimals": 6
+  }
+}

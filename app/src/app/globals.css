@@ -57,4 +57,17 @@
   .wallet-adapter-modal-wrapper {
     @apply rounded-3xl;
   }
+
+  .wallet-adapter-dropdown {
+    position: relative;
+    z-index: 60;
+  }
+
+  .wallet-adapter-dropdown-list {
+    z-index: 70 !important;
+  }
+
+  .wallet-adapter-modal {
+    z-index: 80 !important;
+  }
 }

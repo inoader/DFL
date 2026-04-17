@@ -48,6 +48,12 @@ pub mod dfl_lending {
         instructions::create_market::handler(ctx, params)
     }
 
+    pub fn initialize_market_fee_vault(
+        ctx: Context<InitializeMarketFeeVault>,
+    ) -> Result<()> {
+        instructions::create_market::initialize_market_fee_vault_handler(ctx)
+    }
+
     pub fn fund_liquidity(ctx: Context<FundLiquidity>, amount: u64) -> Result<()> {
         instructions::fund_liquidity::handler(ctx, amount)
     }
